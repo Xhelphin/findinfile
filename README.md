@@ -21,8 +21,8 @@ A powerful command-line tool for searching text within files across directories.
 
 ### Build from Source
 ```bash
-git clone <your-repository-url>
-cd FileSearchApp
+git clone https://github.com/Xhelphin/findinfile.git
+cd findinfile
 dotnet restore
 dotnet build
 ```
@@ -36,7 +36,7 @@ dotnet publish -c Release -r win-x64 --self-contained
 
 ### Basic Syntax
 ```bash
-filesearch --string "search_term" --directory "path/to/directory"
+findinfile --string "search_term" --directory "path/to/directory"
 ```
 
 ### Command Line Options
@@ -56,40 +56,40 @@ filesearch --string "search_term" --directory "path/to/directory"
 #### Basic Search
 ```bash
 # Search for "TODO" in the current directory
-filesearch --string "TODO" --directory "."
+findinfile --string "TODO" --directory "."
 
 # Search with short options
-filesearch -s "Console.WriteLine" -d "C:\Projects"
+findinfile -s "Console.WriteLine" -d "C:\Projects"
 ```
 
 #### Multiple Directories
 ```bash
 # Search across multiple directories (automatically shows full paths)
-filesearch --string "error" --directory "C:\Projects,C:\Source,D:\Code"
+findinfile --string "error" --directory "C:\Projects,C:\Source,D:\Code"
 
 # Mix of relative and absolute paths
-filesearch -s "function" -d ".,../OtherProject,C:\SharedLibraries"
+findinfile -s "function" -d ".,../OtherProject,C:\SharedLibraries"
 ```
 
 #### File Extension Filtering
 ```bash
 # Search only C# files
-filesearch --string "class" --directory "." --extensions ".cs"
+findinfile --string "class" --directory "." --extensions ".cs"
 
 # Search multiple file types
-filesearch -s "TODO" -d "C:\Projects" -e ".cs,.js,.ts,.json"
+findinfile -s "TODO" -d "C:\Projects" -e ".cs,.js,.ts,.json"
 ```
 
 #### Case-Insensitive Search
 ```bash
 # Find "error" regardless of case
-filesearch --string "error" --directory "C:\Logs" --ignore-case
+findinfile --string "error" --directory "C:\Logs" --ignore-case
 ```
 
 #### Force Full Paths
 ```bash
 # Show full paths even for single directory
-filesearch --string "config" --directory "." --full-path
+findinfile --string "config" --directory "." --full-path
 ```
 
 ## Output Format
@@ -138,8 +138,7 @@ The application gracefully handles common issues:
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Submit a pull request
 
 ## License
 
@@ -171,7 +170,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ### Getting Help
 
 ```bash
-filesearch --help
+findinfile --help
 ```
 
-For more detailed help or to report issues, please visit the project repository.
+To report issues, please visit the [Project Issues Page](https://github.com/Xhelphin/findinfile/issues).
