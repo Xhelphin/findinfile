@@ -35,6 +35,9 @@ dotnet run --project FindInFile -- -s "class" -d ".,../OtherProject" -e ".cs"
 
 # Case-insensitive with full paths
 dotnet run --project FindInFile -- -s "error" -d "." -i --full-path
+
+# Verbose mode for detailed logging
+dotnet run --project FindInFile -- -s "TODO" -d "." -v
 ```
 
 ## Architecture

@@ -13,6 +13,7 @@ A powerful command-line tool for searching text within files across directories.
 - 🌈 **Rich Output**: Colorized results with highlighted matches and formatted tables
 - ⚡ **Real-time Progress**: Live status updates during search operations
 - 🛡️ **Error Resilience**: Continues searching even when encountering permission errors
+- 📊 **Verbose Mode**: Optional detailed logging showing file processing, skipped files, and match counts
 
 ## Installation
 
@@ -49,6 +50,7 @@ findinfile --string "search_term" --directory "path/to/directory"
 | `--ignore-case` | `-i` | Perform case-insensitive search |
 | `--exclude-binary` | | Skip binary files (enabled by default) |
 | `--full-path` | | Display full file paths instead of relative paths |
+| `--verbose` | `-v` | Enable verbose output with detailed logging |
 | `--help` | `-h` | Show help information |
 
 ### Examples
@@ -90,6 +92,15 @@ findinfile --string "error" --directory "C:\Logs" --ignore-case
 ```bash
 # Show full paths even for single directory
 findinfile --string "config" --directory "." --full-path
+```
+
+#### Verbose Mode
+```bash
+# Enable detailed logging to see which files are being processed and skipped
+findinfile --string "TODO" --directory "." --verbose
+
+# Short form
+findinfile -s "error" -d "C:\Projects" -e ".cs" -v
 ```
 
 ## Output Format

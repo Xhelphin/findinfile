@@ -13,9 +13,10 @@ public class Program
         app.Configure(config =>
         {
             config.SetApplicationName("findinfile");
-            config.SetApplicationVersion("1.0.0");
+            config.SetApplicationVersion("1.0.0-dev-verbose-mode");
             config.AddExample(new[] { "--string", "TODO", "--directory", "C:\\Projects,C:\\Source", "--full-path" });
             config.AddExample(new[] { "-s", "Console.WriteLine", "-d", ".,../OtherProject" });
+            config.AddExample(new[] { "-s", "error", "-d", ".", "-v" });
         });
 
         return app.Run(args);
@@ -49,6 +50,10 @@ public class SearchCommand : Command<SearchCommand.Settings>
         [CommandOption("--full-path")]
         [Description("Display full file paths instead of relative paths (automatically enabled when multiple directories are specified)")]
         public bool FullPath { get; set; }
+
+        [CommandOption("-v|--verbose")]
+        [Description("Enable verbose output with detailed logging")]
+        public bool Verbose { get; set; }
 
         public override ValidationResult Validate()
         {
@@ -86,18 +91,24 @@ public class SearchCommand : Command<SearchCommand.Settings>
             Extensions = ParseExtensions(settings.Extensions),
             IgnoreCase = settings.IgnoreCase,
             ExcludeBinary = settings.ExcludeBinary,
-            FullPath = settings.FullPath
+            FullPath = settings.FullPath,
+            Verbose = settings.Verbose
         };
 
         AnsiConsole.MarkupLine($"[green]Searching for:[/] [yellow]{settings.SearchString}[/]");
         AnsiConsole.MarkupLine($"[green]Directories:[/] [blue]{string.Join(", ", searchOptions.Directories)}[/]");
         AnsiConsole.MarkupLine($"[green]Case sensitive:[/] {(settings.IgnoreCase ? "[red]No[/]" : "[green]Yes[/]")}");
-        
+
+        if (settings.Verbose)
+        {
+            AnsiConsole.MarkupLine($"[green]Verbose mode:[/] [cyan]Enabled[/]");
+        }
+
         if (searchOptions.Extensions?.Any() == true)
         {
             AnsiConsole.MarkupLine($"[green]Extensions:[/] [cyan]{string.Join(", ", searchOptions.Extensions)}[/]");
         }
-        
+
         AnsiConsole.WriteLine();
 
         var results = new List<SearchResult>();
@@ -147,21 +158,45 @@ public class SearchCommand : Command<SearchCommand.Settings>
         try
         {
             var files = Directory.GetFiles(directory, "*", SearchOption.AllDirectories);
-            
+
+            if (options.Verbose)
+            {
+                AnsiConsole.MarkupLine($"[dim]Found {files.Length} files in {directory}[/]");
+            }
+
             foreach (var file in files)
             {
                 ctx.Status($"Searching: {Path.GetFileName(file)}");
                 totalFiles++;
 
                 if (options.Extensions != null && !options.Extensions.Contains(Path.GetExtension(file)))
+                {
+                    if (options.Verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]Skipping {file} (extension filter)[/]");
+                    }
                     continue;
+                }
 
                 try
                 {
                     if (options.ExcludeBinary && IsBinaryFile(file))
+                    {
+                        if (options.Verbose)
+                        {
+                            AnsiConsole.MarkupLine($"[dim]Skipping {file} (binary file)[/]");
+                        }
                         continue;
+                    }
 
+                    var matchesBefore = results.Count;
                     SearchFile(file, options, results);
+                    var matchesFound = results.Count - matchesBefore;
+
+                    if (options.Verbose && matchesFound > 0)
+                    {
+                        AnsiConsole.MarkupLine($"[green]Found {matchesFound} match(es) in {file}[/]");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -184,7 +219,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
         {
             var line = lines[i];
             var index = line.IndexOf(options.SearchString, comparison);
-            
+
             if (index >= 0)
             {
                 results.Add(new SearchResult
@@ -205,7 +240,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
             using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             var buffer = new byte[1024];
             var bytesRead = stream.Read(buffer, 0, buffer.Length);
-            
+
             // Check for null bytes which typically indicate binary files
             return buffer.Take(bytesRead).Any(b => b == 0);
         }
@@ -218,7 +253,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
     private static void DisplayResults(List<SearchResult> results, int totalFiles, SearchOptions options)
     {
         AnsiConsole.WriteLine();
-        
+
         if (results.Count == 0)
         {
             AnsiConsole.MarkupLine($"[yellow]No matches found for '{options.SearchString}' in {totalFiles} files.[/]");
@@ -238,10 +273,10 @@ public class SearchCommand : Command<SearchCommand.Settings>
         foreach (var fileGroup in groupedResults)
         {
             string displayPath;
-            
+
             // Default to full path if multiple directories are specified, unless explicitly overridden
             bool shouldShowFullPath = options.FullPath || options.Directories.Count > 1;
-            
+
             if (shouldShowFullPath)
             {
                 displayPath = fileGroup.Key;
@@ -254,7 +289,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
                     .OrderByDescending(dir => dir.Length)
                     .FirstOrDefault();
 
-                displayPath = bestBaseDir != null 
+                displayPath = bestBaseDir != null
                     ? Path.GetRelativePath(bestBaseDir, fileGroup.Key)
                     : fileGroup.Key;
             }
@@ -265,10 +300,10 @@ public class SearchCommand : Command<SearchCommand.Settings>
             {
                 var fileName = isFirst ? $"[blue]{displayPath}[/]" : "";
                 var lineNumber = $"[dim]{result.LineNumber}[/]";
-                
+
                 // Highlight the match in the line content
                 var highlightedContent = HighlightMatch(result.LineContent, options.SearchString, result.MatchIndex, options.IgnoreCase);
-                
+
                 table.AddRow(fileName, lineNumber, highlightedContent);
                 isFirst = false;
             }
@@ -300,6 +335,7 @@ public class SearchOptions
     public bool IgnoreCase { get; set; }
     public bool ExcludeBinary { get; set; }
     public bool FullPath { get; set; }
+    public bool Verbose { get; set; }
 }
 
 public class SearchResult
