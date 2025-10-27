@@ -13,7 +13,7 @@ public class Program
         app.Configure(config =>
         {
             config.SetApplicationName("findinfile");
-            config.SetApplicationVersion("1.0.0-dev-verbose-mode");
+            config.SetApplicationVersion("1.1.0-dev");
             config.AddExample(new[] { "--string", "TODO", "--directory", "C:\\Projects,C:\\Source", "--full-path" });
             config.AddExample(new[] { "-s", "Console.WriteLine", "-d", ".,../OtherProject" });
             config.AddExample(new[] { "-s", "error", "-d", ".", "-v" });
