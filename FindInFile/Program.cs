@@ -13,7 +13,7 @@ public class Program
         app.Configure(config =>
         {
             config.SetApplicationName("findinfile");
-            config.SetApplicationVersion("1.1.0");
+            config.SetApplicationVersion("1.2.0");
             config.AddExample(new[] { "--string", "TODO", "--directory", "C:\\Projects,C:\\Source", "--full-path" });
             config.AddExample(new[] { "-s", "Console.WriteLine", "-d", ".,../OtherProject" });
             config.AddExample(new[] { "-s", "error", "-d", ".", "-v" });
@@ -28,8 +28,8 @@ public class SearchCommand : Command<SearchCommand.Settings>
     public class Settings : CommandSettings
     {
         [CommandOption("-s|--string")]
-        [Description("The string to search for in files")]
-        public required string SearchString { get; set; }
+        [Description("The string(s) to search for in files. Repeat -s for multiple strings (AND logic: only files containing all strings are returned).")]
+        public required string[] SearchStrings { get; set; }
 
         [CommandOption("-d|--directory")]
         [Description("The directory or directories to search in (searches recursively). Use comma-separated values for multiple directories.")]
@@ -57,8 +57,10 @@ public class SearchCommand : Command<SearchCommand.Settings>
 
         public override ValidationResult Validate()
         {
-            if (string.IsNullOrWhiteSpace(SearchString))
-                return ValidationResult.Error("Search string cannot be empty");
+            if (SearchStrings == null || SearchStrings.Length == 0)
+                return ValidationResult.Error("At least one search string must be provided.");
+            if (SearchStrings.Any(s => string.IsNullOrWhiteSpace(s)))
+                return ValidationResult.Error("Search strings cannot be empty.");
 
             if (string.IsNullOrWhiteSpace(Directory))
                 return ValidationResult.Error("Directory cannot be empty");
@@ -86,7 +88,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
     {
         var searchOptions = new SearchOptions
         {
-            SearchString = settings.SearchString,
+            SearchStrings = settings.SearchStrings,
             Directories = Settings.ParseDirectories(settings.Directory),
             Extensions = ParseExtensions(settings.Extensions),
             IgnoreCase = settings.IgnoreCase,
@@ -95,7 +97,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
             Verbose = settings.Verbose
         };
 
-        AnsiConsole.MarkupLine($"[green]Searching for:[/] [yellow]{settings.SearchString}[/]");
+        AnsiConsole.MarkupLine($"[green]Searching for:[/] [yellow]{string.Join(", ", settings.SearchStrings)}[/]");
         AnsiConsole.MarkupLine($"[green]Directories:[/] [blue]{string.Join(", ", searchOptions.Directories)}[/]");
         AnsiConsole.MarkupLine($"[green]Case sensitive:[/] {(settings.IgnoreCase ? "[red]No[/]" : "[green]Yes[/]")}");
 
@@ -215,22 +217,33 @@ public class SearchCommand : Command<SearchCommand.Settings>
         var lines = File.ReadAllLines(filePath);
         var comparison = options.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-        for (int i = 0; i < lines.Length; i++)
+        // Collect matches per search string
+        var matchesByString = new List<List<SearchResult>>();
+        foreach (var term in options.SearchStrings)
         {
-            var line = lines[i];
-            var index = line.IndexOf(options.SearchString, comparison);
-
-            if (index >= 0)
+            var termMatches = new List<SearchResult>();
+            for (int i = 0; i < lines.Length; i++)
             {
-                results.Add(new SearchResult
-                {
-                    FilePath = filePath,
-                    LineNumber = i + 1,
-                    LineContent = line,
-                    MatchIndex = index
-                });
+                int idx = lines[i].IndexOf(term, comparison);
+                if (idx >= 0)
+                    termMatches.Add(new SearchResult
+                    {
+                        FilePath = filePath,
+                        LineNumber = i + 1,
+                        LineContent = lines[i],
+                        MatchIndex = idx,
+                        MatchedTerm = term
+                    });
             }
+            matchesByString.Add(termMatches);
         }
+
+        // AND logic: every term must have at least one match
+        if (matchesByString.Any(m => m.Count == 0))
+            return;
+
+        // Return union of all matches
+        results.AddRange(matchesByString.SelectMany(m => m));
     }
 
     private static bool IsBinaryFile(string filePath)
@@ -256,7 +269,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
 
         if (results.Count == 0)
         {
-            AnsiConsole.MarkupLine($"[yellow]No matches found for '{options.SearchString}' in {totalFiles} files.[/]");
+            AnsiConsole.MarkupLine($"[yellow]No matches found for '{string.Join(", ", options.SearchStrings)}' in {totalFiles} files.[/]");
             return;
         }
 
@@ -296,13 +309,13 @@ public class SearchCommand : Command<SearchCommand.Settings>
 
             var isFirst = true;
 
-            foreach (var result in fileGroup.OrderBy(r => r.LineNumber))
+            foreach (var result in fileGroup.OrderBy(r => r.LineNumber).DistinctBy(r => r.LineNumber))
             {
                 var fileName = isFirst ? $"[blue]{displayPath}[/]" : "";
                 var lineNumber = $"[dim]{result.LineNumber}[/]";
 
                 // Highlight the match in the line content
-                var highlightedContent = HighlightMatch(result.LineContent, options.SearchString, result.MatchIndex, options.IgnoreCase);
+                var highlightedContent = HighlightMatch(result.LineContent, result.MatchedTerm, result.MatchIndex, options.IgnoreCase);
 
                 table.AddRow(fileName, lineNumber, highlightedContent);
                 isFirst = false;
@@ -329,7 +342,7 @@ public class SearchCommand : Command<SearchCommand.Settings>
 
 public class SearchOptions
 {
-    public required string SearchString { get; set; }
+    public required string[] SearchStrings { get; set; }
     public required List<string> Directories { get; set; }
     public HashSet<string>? Extensions { get; set; }
     public bool IgnoreCase { get; set; }
@@ -344,4 +357,5 @@ public class SearchResult
     public int LineNumber { get; set; }
     public required string LineContent { get; set; }
     public int MatchIndex { get; set; }
+    public required string MatchedTerm { get; set; }
 }
